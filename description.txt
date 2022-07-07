@@ -1,0 +1,3 @@
+Recipe Saver pairs with a standalone program written by me to calculate the primitive materials required to craft items.
+
+You can find the program here: 
