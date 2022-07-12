@@ -13,6 +13,7 @@ namespace RecipeSaver {
         public int? createWall;
         public string tooltip;
         public readonly Dictionary<int, int> bagItems = new();
+        public string mod;
 
         public JsonItem(Item item) {
             type = item.type;
@@ -20,6 +21,8 @@ namespace RecipeSaver {
             value = item.value;
             createTile = item.createTile == -1 ? null : item.createTile;
             createWall = item.createWall == -1 ? null : item.createWall;
+
+            mod = item.ModItem?.Mod?.Name ?? "Terraria";
 
             tooltip = "";
             for (int i = 0; i < item.ToolTip.Lines; i++) {
