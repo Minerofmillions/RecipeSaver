@@ -35,7 +35,7 @@ namespace RecipeSaver {
                 needsRecalculate = !ContentsEqualOrderless(currentMods, oldMods);
             } else needsRecalculate = true;
 
-            //if (needsRecalculate) {
+            if (needsRecalculate) {
                 Logger.Info("Starting recipe saving");
                 Logger.InfoFormat("Saving {0} groups", RecipeGroup.recipeGroups.Count);
                 Dictionary<int, JsonGroup> groups = new();
@@ -84,7 +84,7 @@ namespace RecipeSaver {
                 Logger.Info("Saved enemies");
 
                 Serialize(DataPath, currentMods);
-            //}
+            }
         }
 
         private static void Serialize(string path, object value) {
