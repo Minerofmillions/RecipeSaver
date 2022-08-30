@@ -10,10 +10,12 @@ namespace RecipeSaver {
     public class JsonMod {
         public string name;
         public string version;
+        public string displayName;
 
         public JsonMod(Mod mod) {
             name = mod?.Name ?? "Terraria";
-            version = mod?.Version.ToString() ?? "0.0";
+            version = mod?.Version?.ToString() ?? "0.0";
+            displayName = mod?.DisplayName ?? "Terraria";
         }
 
         public override bool Equals(object obj) {
