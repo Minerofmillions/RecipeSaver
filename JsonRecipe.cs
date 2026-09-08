@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using Terraria;
+using Terraria.Localization;
 
 namespace RecipeSaver {
     public class JsonRecipe {
         public JsonItemStack createItem;
-        public List<string> conditions;
-        public List<JsonItemStack> requiredItems = new();
+        public List<LocalizedText> conditions;
+        public List<JsonItemStack> requiredItems = [];
         public List<int> requiredTiles;
         public string mod;
         public List<int> acceptedGroups;
@@ -16,8 +17,8 @@ namespace RecipeSaver {
 
             mod = recipe.Mod?.Name ?? "Terraria";
 
-            conditions = new();
-            foreach (Recipe.Condition condition in recipe.Conditions) {
+            conditions = [];
+            foreach (var condition in recipe.Conditions) {
                 conditions.Add(condition.Description);
             }
 

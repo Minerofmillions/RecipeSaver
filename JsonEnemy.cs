@@ -19,7 +19,7 @@ namespace RecipeSaver {
         public int banner;
         public int killsPerBanner;
 
-        internal static readonly HashSet<Type> ruleTypes = new();
+        internal static readonly HashSet<Type> ruleTypes = [];
 
         public JsonEnemy(int npcID) {
             NPC npc = new();
@@ -30,7 +30,7 @@ namespace RecipeSaver {
             mod = npc.ModNPC?.Mod?.Name ?? "Terraria";
 
             List<IItemDropRule> itemDropRules = Main.ItemDropsDB.GetRulesForNPCID(npcID);
-            itemDropRules.ForEach(rule => drops.AddRule(rule));
+            itemDropRules.ForEach(drops.AddRule);
 
             int bannerId = Item.NPCtoBanner(npcID);
             banner = bannerId > 0 ? Item.BannerToItem(bannerId) : 0;

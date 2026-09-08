@@ -9,21 +9,21 @@ using Mono.Cecil.Cil;
 
 namespace RecipeSaver {
     public class JsonArmor {
-        public static readonly List<Item> Heads = new();
-        public static readonly List<Item> Bodies = new();
-        public static readonly List<Item> Legs = new();
+        public static readonly List<Item> Heads = [];
+        public static readonly List<Item> Bodies = [];
+        public static readonly List<Item> Legs = [];
 
         public static HashSet<JsonArmor> GetArmorSets() {
             Main.player[0] = new();
             Player player = Main.player[0];
-            HashSet<JsonArmor> armorSets = new();
+            HashSet<JsonArmor> armorSets = [];
             foreach (Item head in Heads) {
                 SetHead(player, head);
                 foreach (Item body in Bodies) {
                     SetBody(player, body);
                     foreach (Item legs in Legs) {
                         SetLegs(player, legs);
-                        player.statDefense = 0;
+                        player.statDefense = Player.DefenseStat.Default;
 
                         var (fullSetBonus, fullDefenseBonus) = EvaluateArmorSet(player);
 

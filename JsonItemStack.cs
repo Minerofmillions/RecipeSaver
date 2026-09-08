@@ -2,13 +2,9 @@
 using Terraria;
 
 namespace RecipeSaver {
-    public class JsonItemStack {
-        public int type;
-        public int stack;
-
-        public JsonItemStack(Item item) {
-            type = item.type;
-            stack = item.stack;
-        }
+    public class JsonItemStack(Item item)
+    {
+        public int type = item.type;
+        public int stack = item.stack;
     }
 }

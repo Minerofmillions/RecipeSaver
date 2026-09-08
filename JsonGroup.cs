@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace RecipeSaver {
     public class JsonGroup {
-        public List<int> validItems = new();
+        public List<int> validItems = [];
         public int iconicItem;
         public JsonGroup(RecipeGroup group) {
             iconicItem = group.IconicItemId;

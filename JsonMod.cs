@@ -7,16 +7,11 @@ using System.Threading.Tasks;
 using Terraria.ModLoader;
 
 namespace RecipeSaver {
-    public class JsonMod {
-        public string name;
-        public string version;
-        public string displayName;
-
-        public JsonMod(Mod mod) {
-            name = mod?.Name ?? "Terraria";
-            version = mod?.Version?.ToString() ?? "0.0";
-            displayName = mod?.DisplayName ?? "Terraria";
-        }
+    public class JsonMod(Mod mod)
+    {
+        public string name = mod?.Name ?? "Terraria";
+        public string version = mod?.Version?.ToString() ?? "0.0";
+        public string displayName = mod?.DisplayName ?? "Terraria";
 
         public override bool Equals(object obj) {
             if (ReferenceEquals(this, obj)) return true;

@@ -1,0 +1,10 @@
+Configs: {
+	RecipeSaverConfig: {
+		ExtractinatorTests: {
+			Tooltip: ""
+			Label: Extractinator Tests
+		}
+
+		DisplayName: Recipe Saver Config
+	}
+}

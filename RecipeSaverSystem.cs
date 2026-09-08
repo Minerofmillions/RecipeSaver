@@ -38,7 +38,7 @@ namespace RecipeSaver {
 
         public override void PostAddRecipes() {
             Main.player[1] = player;
-            List<JsonMod> currentMods = new();
+            List<JsonMod> currentMods = [];
             foreach (Mod mod in ModLoader.Mods) {
                 if (mod is not null) currentMods.Add(new(mod));
             }
@@ -106,7 +106,7 @@ namespace RecipeSaver {
         }
 
         private static void SaveNPCs() {
-            List<JsonEnemy> enemies = new();
+            List<JsonEnemy> enemies = [];
             for (int i = -65; i < NPCLoader.NPCCount; i++) {
                 enemies.Add(new(i));
             }
@@ -114,7 +114,7 @@ namespace RecipeSaver {
         }
 
         private static void SaveRecipes() {
-            List<JsonRecipe> recipes = new();
+            List<JsonRecipe> recipes = [];
             for (int i = 0; i < Recipe.numRecipes; i++) {
                 Recipe recipe = Main.recipe[i];
                 if (recipe.Disabled) continue;
@@ -124,7 +124,7 @@ namespace RecipeSaver {
         }
 
         private static void SaveItems() {
-            List<JsonItem> items = new();
+            List<JsonItem> items = [];
             for (int i = 1; i < ItemLoader.ItemCount; i++) {
                 Item item = new(i);
                 if (item.type != ItemID.None) {
@@ -141,7 +141,7 @@ namespace RecipeSaver {
         }
 
         private static void SaveGroups() {
-            Dictionary<int, JsonGroup> groups = new();
+            Dictionary<int, JsonGroup> groups = [];
             foreach (var (id, group) in RecipeGroup.recipeGroups) {
                 groups.Add(id, new(group));
             }

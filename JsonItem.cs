@@ -15,7 +15,8 @@ namespace RecipeSaver {
         public int? createWall;
         public string tooltip;
         public readonly JsonLoot bagItems = new();
-        public readonly Dictionary<int, int> extractinatorItems = new();
+        public readonly Dictionary<int, int> extractinatorItems = [];
+        public readonly Dictionary<int, int> chlorophyteExtractinatorItems = [];
         public string mod;
         public int bait;
         public int fishingPower;
@@ -43,22 +44,27 @@ namespace RecipeSaver {
 
         public void FindDrops() {
             OpenBag();
-            FindExtractinatorInfo();
+            FindExtractinatorInfo(TileID.Extractinator, extractinatorItems);
+            FindExtractinatorInfo(TileID.ChlorophyteExtractinator, chlorophyteExtractinatorItems);
         }
 
         private void OpenBag() {
             List<IItemDropRule> rules = Main.ItemDropsDB.GetRulesForItemID(type);
-            rules.ForEach(rule => bagItems.AddRule(rule));
+            rules.ForEach(bagItems.AddRule);
         }
-        private void FindExtractinatorInfo() {
-            int extractinatorMode = ItemID.Sets.ExtractinatorMode[type];
-            
+        private void FindExtractinatorInfo(int extractinatorBlockType, Dictionary<int, int> extractinatorItems) {
+            int extractinatorType = ItemID.Sets.ExtractinatorMode[type];
+            if (extractinatorType == -1) return;
+            FindExtractinatorInfo(extractinatorType, extractinatorBlockType, extractinatorItems);
+        }
+
+        private static void FindExtractinatorInfo(int type, int extractinatorBlockType, Dictionary<int, int> extractinatorItems) {
             int resultType = 0;
             int resultStack = 0;
 
             int consecutiveEmpty = 0;
             for (int i = 0; i < RecipeSaverConfig.Instance.ExtractinatorTests; i++) {
-                ItemLoader.ExtractinatorUse(ref resultType, ref resultStack, type);
+                ItemLoader.ExtractinatorUse(ref resultType, ref resultStack, type, extractinatorBlockType);
                 if (resultType == 0) {
                     if (++consecutiveEmpty == 100) {
                         extractinatorItems.Clear();
