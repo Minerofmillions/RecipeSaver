@@ -1,23 +1,18 @@
-﻿using log4net.Repository.Hierarchy;
-using Microsoft.Xna.Framework;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Terraria;
-using Terraria.Audio;
-using Terraria.DataStructures;
-using Terraria.GameContent.ItemDropRules;
 using Terraria.ID;
 using Terraria.ModLoader;
-using Terraria.Utilities;
 
-namespace RecipeSaver {
-    readonly record struct DataFile {
-        public DataFile(List<JsonMod> currentMods, int extractinatorTests) {
+namespace RecipeSaver
+{
+    readonly record struct DataFile
+    {
+        public DataFile(List<JsonMod> currentMods, int extractinatorTests)
+        {
             CurrentMods = currentMods;
             ExtractinatorTests = extractinatorTests;
         }
@@ -25,7 +20,8 @@ namespace RecipeSaver {
         public int ExtractinatorTests { get; init; }
     }
 
-    public class RecipeSaverSystem : ModSystem {
+    public class RecipeSaverSystem : ModSystem
+    {
         private static readonly string SaverPath = Path.Combine(Main.SavePath, "Saver");
         private static readonly string ItemsPath = Path.Combine(SaverPath, "Items.json");
         private static readonly string RecipesPath = Path.Combine(SaverPath, "Recipes.json");
@@ -36,34 +32,45 @@ namespace RecipeSaver {
 
         private static readonly Player player = new();
 
-        public override void PostAddRecipes() {
+        public override void PostAddRecipes()
+        {
             Main.player[1] = player;
             List<JsonMod> currentMods = [];
-            foreach (Mod mod in ModLoader.Mods) {
+            foreach (Mod mod in ModLoader.Mods)
+            {
                 if (mod is not null) currentMods.Add(new(mod));
             }
             bool needsRecalculate;
 
-            if (File.Exists(DataPath)) {
+            if (File.Exists(DataPath))
+            {
                 DataFile oldConfig;
-                try {
+                try
+                {
                     oldConfig = JsonConvert.DeserializeObject<DataFile>(File.ReadAllText(DataPath));
                     needsRecalculate = !ContentsEqualOrderless(currentMods, oldConfig.CurrentMods) ||
                         RecipeSaverConfig.Instance.ExtractinatorTests != oldConfig.ExtractinatorTests;
-                } catch (Exception) {
+                }
+                catch (Exception)
+                {
                     needsRecalculate = true;
                 }
-            } else needsRecalculate = true;
+            }
+            else needsRecalculate = true;
 
-            if (needsRecalculate) {
+            if (needsRecalculate)
+            {
                 int tries = 0;
-                while (tries++ < 5) {
-                    if (TrySavingData()) {
+                while (tries++ < 5)
+                {
+                    if (TrySavingData())
+                    {
                         Serialize(DataPath, new DataFile(currentMods, RecipeSaverConfig.Instance.ExtractinatorTests));
                         break;
                     }
                 }
-                if (tries == 5) {
+                if (tries == 5)
+                {
                     Mod.Logger.Info("Couldn't save data.");
                 }
             }
@@ -75,16 +82,21 @@ namespace RecipeSaver {
         private static bool savedNPCs = false;
         private static bool savedArmors = false;
 
-        private static bool TrySavingData() {
-            if (!savedGroups) try {
+        private static bool TrySavingData()
+        {
+            if (!savedGroups) try
+                {
                     SaveGroups();
                     savedGroups = true;
-                } catch (Exception) { }
+                }
+                catch (Exception) { }
 
-            if (!savedItems) try {
+            if (!savedItems) try
+                {
                     SaveItems();
                     savedItems = true;
-                } catch (Exception) { }
+                }
+                catch (Exception) { }
 
             if (savedItems && !savedArmors) try {
                     HashSet<JsonArmor> armorSets = JsonArmor.GetArmorSets();
@@ -92,30 +104,38 @@ namespace RecipeSaver {
                     savedArmors = true;
                 } catch (Exception) { }
 
-            if (!savedRecipes) try {
+            if (!savedRecipes) try
+                {
                     SaveRecipes();
                     savedRecipes = true;
-                } catch (Exception) { }
+                }
+                catch (Exception) { }
 
-            if (!savedNPCs) try {
+            if (!savedNPCs) try
+                {
                     SaveNPCs();
                     savedNPCs = true;
-                } catch (Exception) { }
+                }
+                catch (Exception) { }
 
             return savedGroups && savedItems && savedArmors && savedRecipes && savedNPCs;
         }
 
-        private static void SaveNPCs() {
+        private static void SaveNPCs()
+        {
             List<JsonEnemy> enemies = [];
-            for (int i = -65; i < NPCLoader.NPCCount; i++) {
+            for (int i = -65; i < NPCLoader.NPCCount; i++)
+            {
                 enemies.Add(new(i));
             }
             Serialize(EnemiesPath, enemies);
         }
 
-        private static void SaveRecipes() {
+        private static void SaveRecipes()
+        {
             List<JsonRecipe> recipes = [];
-            for (int i = 0; i < Recipe.numRecipes; i++) {
+            for (int i = 0; i < Recipe.numRecipes; i++)
+            {
                 Recipe recipe = Main.recipe[i];
                 if (recipe.Disabled) continue;
                 recipes.Add(new(recipe));
@@ -123,11 +143,14 @@ namespace RecipeSaver {
             Serialize(RecipesPath, recipes);
         }
 
-        private static void SaveItems() {
+        private static void SaveItems()
+        {
             List<JsonItem> items = [];
-            for (int i = 1; i < ItemLoader.ItemCount; i++) {
+            for (int i = 1; i < ItemLoader.ItemCount; i++)
+            {
                 Item item = new(i);
-                if (item.type != ItemID.None) {
+                if (item.type != ItemID.None)
+                {
                     JsonItem jsonItem = new(item);
                     jsonItem.FindDrops();
                     items.Add(jsonItem);
@@ -140,19 +163,23 @@ namespace RecipeSaver {
             Serialize(ItemsPath, items);
         }
 
-        private static void SaveGroups() {
+        private static void SaveGroups()
+        {
             Dictionary<int, JsonGroup> groups = [];
-            foreach (var (id, group) in RecipeGroup.recipeGroups) {
+            foreach (var (id, group) in RecipeGroup.recipeGroups)
+            {
                 groups.Add(id, new(group));
             }
             Serialize(GroupsPath, groups);
         }
 
-        static RecipeSaverSystem() {
+        static RecipeSaverSystem()
+        {
             Directory.CreateDirectory(SaverPath);
         }
 
-        private static void Serialize(string path, object value) {
+        private static void Serialize(string path, object value)
+        {
             File.WriteAllText(path, JsonConvert.SerializeObject(value, Formatting.Indented));
         }
 

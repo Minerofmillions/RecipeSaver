@@ -1,33 +1,35 @@
 ﻿using Terraria;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using log4net.Repository.Hierarchy;
-using Mono.Cecil.Cil;
 
-namespace RecipeSaver {
-    public class JsonArmor {
+namespace RecipeSaver
+{
+    public class JsonArmor
+    {
         public static readonly List<Item> Heads = [];
         public static readonly List<Item> Bodies = [];
         public static readonly List<Item> Legs = [];
 
-        public static HashSet<JsonArmor> GetArmorSets() {
+        public static HashSet<JsonArmor> GetArmorSets()
+        {
             Main.player[0] = new();
             Player player = Main.player[0];
             HashSet<JsonArmor> armorSets = [];
-            foreach (Item head in Heads) {
+            foreach (Item head in Heads)
+            {
                 SetHead(player, head);
-                foreach (Item body in Bodies) {
+                foreach (Item body in Bodies)
+                {
                     SetBody(player, body);
-                    foreach (Item legs in Legs) {
+                    foreach (Item legs in Legs)
+                    {
                         SetLegs(player, legs);
                         player.statDefense = Player.DefenseStat.Default;
 
                         var (fullSetBonus, fullDefenseBonus) = EvaluateArmorSet(player);
 
-                        if (fullSetBonus != "") {
+                        if (fullSetBonus != "")
+                        {
                             SetLegs(player, new());
                             var (noLegsSetBonus, noLegsDefenseBonus) = EvaluateArmorSet(player);
                             SetLegs(player, legs);
@@ -55,22 +57,26 @@ namespace RecipeSaver {
             return armorSets;
         }
 
-        private static void SetHead(Player player, Item head) {
+        private static void SetHead(Player player, Item head)
+        {
             player.head = head.headSlot;
             player.armor[0] = head;
         }
 
-        private static void SetBody(Player player, Item body) {
+        private static void SetBody(Player player, Item body)
+        {
             player.body = body.bodySlot;
             player.armor[1] = body;
         }
 
-        private static void SetLegs(Player player, Item legs) {
+        private static void SetLegs(Player player, Item legs)
+        {
             player.legs = legs.legSlot;
             player.armor[2] = legs;
         }
 
-        private static Tuple<string, int> EvaluateArmorSet(Player player) {
+        private static Tuple<string, int> EvaluateArmorSet(Player player)
+        {
             player.UpdateArmorSets(255);
             string fullSetBonus = player.setBonus;
             int fullDefenceBonus = player.statDefense;
@@ -85,7 +91,8 @@ namespace RecipeSaver {
         public string setBonus;
         public int setDefense;
 
-        private JsonArmor(Item head, Item body, Item legs, string setBonus, int setDefense) {
+        private JsonArmor(Item head, Item body, Item legs, string setBonus, int setDefense)
+        {
             if (head is not null) this.head = new(head);
             if (body is not null) this.body = new(body);
             if (legs is not null) this.legs = new(legs);
@@ -93,7 +100,8 @@ namespace RecipeSaver {
             this.setDefense = setDefense;
         }
 
-        public override bool Equals(object obj) {
+        public override bool Equals(object obj)
+        {
             if (obj is null) return false;
             if (obj is not JsonArmor armor) return false;
             return armor.head?.type == head?.type && armor.body?.type == body?.type && armor.legs?.type == legs?.type;

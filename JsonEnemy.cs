@@ -1,16 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Terraria;
 using Terraria.GameContent.ItemDropRules;
 using Terraria.ID;
-using Terraria.ModLoader;
 
-namespace RecipeSaver {
-    internal class JsonEnemy {
+namespace RecipeSaver
+{
+    internal class JsonEnemy
+    {
         public string name;
         public int type;
         public string mod;
@@ -21,7 +18,8 @@ namespace RecipeSaver {
 
         internal static readonly HashSet<Type> ruleTypes = [];
 
-        public JsonEnemy(int npcID) {
+        public JsonEnemy(int npcID)
+        {
             NPC npc = new();
             npc.SetDefaults(npcID);
 

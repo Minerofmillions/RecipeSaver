@@ -1,7 +1,7 @@
-﻿using System;
-using Terraria;
+﻿using Terraria;
 
-namespace RecipeSaver {
+namespace RecipeSaver
+{
     public class JsonItemStack(Item item)
     {
         public int type = item.type;
