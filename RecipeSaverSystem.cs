@@ -178,9 +178,17 @@ namespace RecipeSaver
             Directory.CreateDirectory(SaverPath);
         }
 
+        private static readonly JsonSerializerSettings settings = new()
+        {
+            ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+            PreserveReferencesHandling = PreserveReferencesHandling.None,
+            NullValueHandling = NullValueHandling.Ignore,
+            DefaultValueHandling = DefaultValueHandling.Ignore,
+        };
+
         private static void Serialize(string path, object value)
         {
-            File.WriteAllText(path, JsonConvert.SerializeObject(value, Formatting.Indented));
+            File.WriteAllText(path, JsonConvert.SerializeObject(value, Formatting.Indented, settings));
         }
 
         private static bool ContentsEqualOrderless<E>(IEnumerable<E> one, IEnumerable<E> two) => one.All(two.Contains) && two.All(one.Contains);
