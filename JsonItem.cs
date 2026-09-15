@@ -15,8 +15,8 @@ namespace RecipeSaver
         public int? createWall;
         public string tooltip;
         public readonly JsonLoot bagItems = new();
-        public readonly Dictionary<int, int> extractinatorItems = [];
-        public readonly Dictionary<int, int> chlorophyteExtractinatorItems = [];
+        public readonly SortedDictionary<int, int> extractinatorItems = [];
+        public readonly SortedDictionary<int, int> chlorophyteExtractinatorItems = [];
         public string mod;
         public int bait;
         public int fishingPower;
@@ -56,7 +56,7 @@ namespace RecipeSaver
             List<IItemDropRule> rules = Main.ItemDropsDB.GetRulesForItemID(type);
             rules.ForEach(bagItems.AddRule);
         }
-        private void FindExtractinatorInfo(int extractinatorBlockType, Dictionary<int, int> extractinatorItems)
+        private void FindExtractinatorInfo(int extractinatorBlockType, IDictionary<int, int> extractinatorItems)
         {
             int extractinatorType = ItemID.Sets.ExtractinatorMode[type];
             if (extractinatorType == -1) return;
@@ -460,7 +460,7 @@ namespace RecipeSaver
             ItemLoader.ExtractinatorUse(ref resultType, ref resultStack, extractType, extractinatorBlockType);
         }
 
-        private static void FindExtractinatorInfo(int extractType, int extractinatorBlockType, Dictionary<int, int> extractinatorItems)
+        private static void FindExtractinatorInfo(int extractType, int extractinatorBlockType, IDictionary<int, int> extractinatorItems)
         {
             for (int i = 0; i < RecipeSaverConfig.Instance.ExtractinatorTests; i++)
             {
