@@ -10,27 +10,27 @@
     utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        packages = with pkgs; [
-          dotnetCorePackages.sdk_8_0
-          
-          SDL2
-          libGL
+        runtimeLibs = with pkgs; [
           vulkan-loader
+          libGL
           libX11
           libXcursor
-          libXext
-          libXi
           libXrandr
-          
-          fna3d
+          libXi
+          libpulseaudio
+          alsa-lib
+          pipewire
         ];
       in
       {
         devShells.default = pkgs.mkShell {
-          buildInputs = packages;
+          buildInputs = with pkgs; [
+            dotnetCorePackages.sdk_8_0
+          ] ++ runtimeLibs;
 
           shellHook = ''
-            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath packages}:/run/opengl-driver/lib:/run/opengl-driver-32/lib:$LD_LIBRARY_PATH"
+            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath runtimeLibs}:$LD_LIBRARY_PATH"
+            export ALSA_PLUGIN_DIR="${pkgs.pipewire}/lib/alsa-lib"
             echo "tModLoader development shell loaded."
           '';
         };

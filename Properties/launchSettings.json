@@ -4,19 +4,13 @@
       "commandName": "Executable",
       "executablePath": "dotnet",
       "commandLineArgs": "$(tMLPath)",
-      "workingDirectory": "$(tMLSteamPath)",
-      "environmentVariables": {
-        "LD_LIBRARY_PATH": "/run/opengl-driver/lib:/run/opengl-driver-32/lib"
-      }
+      "workingDirectory": "$(tMLSteamPath)"
     },
     "TerrariaServer": {
       "commandName": "Executable",
       "executablePath": "dotnet",
       "commandLineArgs": "$(tMLServerPath)",
-      "workingDirectory": "$(tMLSteamPath)",
-      "environmentVariables": {
-        "LD_LIBRARY_PATH": "/run/opengl-driver/lib:/run/opengl-driver-32/lib"
-      }
+      "workingDirectory": "$(tMLSteamPath)"
     }
   }
 }
