@@ -9,11 +9,10 @@
   outputs = { self, nixpkgs, utils }:
     utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs {
-          inherit system;
-        };
+        pkgs = import nixpkgs { inherit system; };
         packages = with pkgs; [
           dotnetCorePackages.sdk_8_0
+          
           SDL2
           libGL
           vulkan-loader
@@ -22,6 +21,8 @@
           libXext
           libXi
           libXrandr
+          
+          fna3d
         ];
       in
       {
