@@ -1,8 +1,7 @@
 using Terraria.ModLoader;
 
-namespace RecipeSaver
+namespace RecipeSaver;
+
+public class RecipeSaver : Mod
 {
-    public class RecipeSaver : Mod
-    {
-    }
 }

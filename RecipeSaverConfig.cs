@@ -1,16 +1,15 @@
 ﻿using System.ComponentModel;
+using JetBrains.Annotations;
 using Terraria.ModLoader.Config;
 
-namespace RecipeSaver
+namespace RecipeSaver;
+
+public class RecipeSaverConfig : ModConfig
 {
-    public class RecipeSaverConfig : ModConfig
-    {
-        public static RecipeSaverConfig Instance;
+    [UsedImplicitly] public static RecipeSaverConfig Instance;
 
-        public override ConfigScope Mode => ConfigScope.ClientSide;
+    public override ConfigScope Mode => ConfigScope.ClientSide;
 
-        [DefaultValue(10000)]
-        [ReloadRequired]
-        public int ExtractinatorTests;
-    }
+    [DefaultValue(10000)] [ReloadRequired] [UsedImplicitly]
+    public int extractinatorTests;
 }

@@ -1,38 +1,36 @@
 ﻿using System;
 using System.Collections.Generic;
+using JetBrains.Annotations;
 using Terraria;
 using Terraria.GameContent.ItemDropRules;
 using Terraria.ID;
 
-namespace RecipeSaver
+namespace RecipeSaver;
+
+internal class JsonEnemy
 {
-    internal class JsonEnemy
+    [UsedImplicitly] public string name;
+    [UsedImplicitly] public int type;
+    [UsedImplicitly] public string mod;
+    [UsedImplicitly] public readonly JsonLoot drops = new();
+
+    [UsedImplicitly] public int banner;
+    [UsedImplicitly] public int killsPerBanner;
+
+    public JsonEnemy(int npcID)
     {
-        public string name;
-        public int type;
-        public string mod;
-        public readonly JsonLoot drops = new();
+        NPC npc = new();
+        npc.SetDefaults(npcID);
 
-        public int banner;
-        public int killsPerBanner;
+        name = npc.TypeName;
+        type = npc.type;
+        mod = npc.ModNPC?.Mod?.Name ?? "Terraria";
 
-        internal static readonly HashSet<Type> ruleTypes = [];
+        var itemDropRules = Main.ItemDropsDB.GetRulesForNPCID(npcID);
+        itemDropRules.ForEach(drops.AddRule);
 
-        public JsonEnemy(int npcID)
-        {
-            NPC npc = new();
-            npc.SetDefaults(npcID);
-
-            name = npc.TypeName;
-            type = npc.type;
-            mod = npc.ModNPC?.Mod?.Name ?? "Terraria";
-
-            List<IItemDropRule> itemDropRules = Main.ItemDropsDB.GetRulesForNPCID(npcID);
-            itemDropRules.ForEach(drops.AddRule);
-
-            int bannerId = Item.NPCtoBanner(npcID);
-            banner = bannerId > 0 ? Item.BannerToItem(bannerId) : 0;
-            killsPerBanner = banner > 0 ? ItemID.Sets.KillsToBanner[banner] : 0;
-        }
+        var bannerId = Item.NPCtoBanner(npcID);
+        banner = bannerId > 0 ? Item.BannerToItem(bannerId) : 0;
+        killsPerBanner = banner > 0 ? ItemID.Sets.KillsToBanner[banner] : 0;
     }
 }

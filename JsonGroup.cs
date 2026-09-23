@@ -1,20 +1,11 @@
 ﻿using Terraria;
 using System.Collections.Generic;
+using JetBrains.Annotations;
 
-namespace RecipeSaver
+namespace RecipeSaver;
+
+public class JsonGroup(RecipeGroup group)
 {
-    public class JsonGroup
-    {
-        public List<int> validItems = [];
-        public int iconicItem;
-        public JsonGroup(RecipeGroup group)
-        {
-            iconicItem = group.IconicItemId;
-            foreach (int item in group.ValidItems)
-            {
-                validItems.Add(item);
-            }
-            validItems.Sort();
-        }
-    }
+    [UsedImplicitly] public readonly SortedSet<int> validItems = [..group.ValidItems];
+    [UsedImplicitly] public readonly int iconicItem = group.IconicItemId;
 }

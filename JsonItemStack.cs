@@ -1,10 +1,10 @@
-﻿using Terraria;
+﻿using JetBrains.Annotations;
+using Terraria;
 
-namespace RecipeSaver
+namespace RecipeSaver;
+
+public class JsonItemStack(Item item)
 {
-    public class JsonItemStack(Item item)
-    {
-        public int type = item.type;
-        public int stack = item.stack;
-    }
+    [UsedImplicitly] public int type = item.type;
+    [UsedImplicitly] public int stack = item.stack;
 }

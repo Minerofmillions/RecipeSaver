@@ -7,191 +7,197 @@ using Terraria;
 using Terraria.ID;
 using Terraria.ModLoader;
 
-namespace RecipeSaver
+namespace RecipeSaver;
+
+internal readonly record struct DataFile(List<JsonMod> CurrentMods, int ExtractinatorTests);
+
+public class RecipeSaverSystem : ModSystem
 {
-    readonly record struct DataFile
+    private static readonly string SaverPath = Path.Combine(Main.SavePath, "Saver");
+    private static readonly string ItemsPath = Path.Combine(SaverPath, "Items.json");
+    private static readonly string RecipesPath = Path.Combine(SaverPath, "Recipes.json");
+    private static readonly string GroupsPath = Path.Combine(SaverPath, "Groups.json");
+    private static readonly string EnemiesPath = Path.Combine(SaverPath, "Enemies.json");
+    private static readonly string ArmorSetsPath = Path.Combine(SaverPath, "ArmorSets.json");
+    private static readonly string DataPath = Path.Combine(SaverPath, "_Data.json");
+
+    private static readonly Player Player = new();
+
+    public override void PostAddRecipes()
     {
-        public DataFile(List<JsonMod> currentMods, int extractinatorTests)
+        Main.player[1] = Player;
+        List<JsonMod> currentMods =
+        [
+            .. from mod in ModLoader.Mods where mod is not null select new JsonMod(mod)
+        ];
+
+        bool needsRecalculate;
+
+        if (File.Exists(DataPath))
         {
-            CurrentMods = currentMods;
-            ExtractinatorTests = extractinatorTests;
+            try
+            {
+                var oldConfig = JsonConvert.DeserializeObject<DataFile>(File.ReadAllText(DataPath));
+                needsRecalculate = !ContentsEqualOrderless(currentMods, oldConfig.CurrentMods) ||
+                                   RecipeSaverConfig.Instance.extractinatorTests != oldConfig.ExtractinatorTests;
+            }
+            catch (Exception)
+            {
+                needsRecalculate = true;
+            }
         }
-        public List<JsonMod> CurrentMods { get; init; }
-        public int ExtractinatorTests { get; init; }
+        else needsRecalculate = true;
+
+        if (!needsRecalculate) return;
+        var tries = 0;
+        while (tries++ < 5)
+        {
+            if (!TrySavingData()) continue;
+            Serialize(DataPath, new DataFile(currentMods, RecipeSaverConfig.Instance.extractinatorTests));
+            break;
+        }
+
+        if (tries == 5)
+        {
+            Mod.Logger.Info("Couldn't save data.");
+        }
     }
 
-    public class RecipeSaverSystem : ModSystem
+    private static bool _savedGroups;
+    private static bool _savedItems;
+    private static bool _savedRecipes;
+    private static bool _savedEnemies;
+    private static bool _savedArmors;
+
+    private static bool TrySavingData()
     {
-        private static readonly string SaverPath = Path.Combine(Main.SavePath, "Saver");
-        private static readonly string ItemsPath = Path.Combine(SaverPath, "Items.json");
-        private static readonly string RecipesPath = Path.Combine(SaverPath, "Recipes.json");
-        private static readonly string GroupsPath = Path.Combine(SaverPath, "Groups.json");
-        private static readonly string EnemiesPath = Path.Combine(SaverPath, "Enemies.json");
-        private static readonly string ArmorSetsPath = Path.Combine(SaverPath, "ArmorSets.json");
-        private static readonly string DataPath = Path.Combine(SaverPath, "_Data.json");
-
-        private static readonly Player player = new();
-
-        public override void PostAddRecipes()
-        {
-            Main.player[1] = player;
-            List<JsonMod> currentMods = [];
-            foreach (Mod mod in ModLoader.Mods)
+        if (!_savedGroups)
+            try
             {
-                if (mod is not null) currentMods.Add(new(mod));
+                SaveGroups();
+                _savedGroups = true;
             }
-            bool needsRecalculate;
-
-            if (File.Exists(DataPath))
+            catch (Exception)
             {
-                DataFile oldConfig;
-                try
-                {
-                    oldConfig = JsonConvert.DeserializeObject<DataFile>(File.ReadAllText(DataPath));
-                    needsRecalculate = !ContentsEqualOrderless(currentMods, oldConfig.CurrentMods) ||
-                        RecipeSaverConfig.Instance.ExtractinatorTests != oldConfig.ExtractinatorTests;
-                }
-                catch (Exception)
-                {
-                    needsRecalculate = true;
-                }
             }
-            else needsRecalculate = true;
 
-            if (needsRecalculate)
+        if (!_savedItems)
+            try
             {
-                int tries = 0;
-                while (tries++ < 5)
-                {
-                    if (TrySavingData())
-                    {
-                        Serialize(DataPath, new DataFile(currentMods, RecipeSaverConfig.Instance.ExtractinatorTests));
-                        break;
-                    }
-                }
-                if (tries == 5)
-                {
-                    Mod.Logger.Info("Couldn't save data.");
-                }
+                SaveItems();
+                _savedItems = true;
             }
-        }
-
-        private static bool savedGroups = false;
-        private static bool savedItems = false;
-        private static bool savedRecipes = false;
-        private static bool savedNPCs = false;
-        private static bool savedArmors = false;
-
-        private static bool TrySavingData()
-        {
-            if (!savedGroups) try
-                {
-                    SaveGroups();
-                    savedGroups = true;
-                }
-                catch (Exception) { }
-
-            if (!savedItems) try
-                {
-                    SaveItems();
-                    savedItems = true;
-                }
-                catch (Exception) { }
-
-            if (savedItems && !savedArmors) try {
-                    HashSet<JsonArmor> armorSets = JsonArmor.GetArmorSets();
-                    Serialize(ArmorSetsPath, armorSets);
-                    savedArmors = true;
-                } catch (Exception) { }
-
-            if (!savedRecipes) try
-                {
-                    SaveRecipes();
-                    savedRecipes = true;
-                }
-                catch (Exception) { }
-
-            if (!savedNPCs) try
-                {
-                    SaveNPCs();
-                    savedNPCs = true;
-                }
-                catch (Exception) { }
-
-            return savedGroups && savedItems && savedArmors && savedRecipes && savedNPCs;
-        }
-
-        private static void SaveNPCs()
-        {
-            List<JsonEnemy> enemies = [];
-            for (int i = -65; i < NPCLoader.NPCCount; i++)
+            catch (Exception)
             {
-                enemies.Add(new(i));
             }
-            Serialize(EnemiesPath, enemies);
-        }
 
-        private static void SaveRecipes()
-        {
-            List<JsonRecipe> recipes = [];
-            for (int i = 0; i < Recipe.numRecipes; i++)
+        if (_savedItems && !_savedArmors)
+            try
             {
-                Recipe recipe = Main.recipe[i];
-                if (recipe.Disabled) continue;
-                recipes.Add(new(recipe));
+                var armorSets = JsonArmor.GetArmorSets();
+                Serialize(ArmorSetsPath, armorSets);
+                _savedArmors = true;
             }
-            Serialize(RecipesPath, recipes);
-        }
-
-        private static void SaveItems()
-        {
-            List<JsonItem> items = [];
-            for (int i = 1; i < ItemLoader.ItemCount; i++)
+            catch (Exception)
             {
-                Item item = new(i);
-                if (item.type != ItemID.None)
-                {
-                    JsonItem jsonItem = new(item);
-                    jsonItem.FindDrops();
-                    items.Add(jsonItem);
-
-                    if (item.headSlot != -1) JsonArmor.Heads.Add(item);
-                    if (item.bodySlot != -1) JsonArmor.Bodies.Add(item);
-                    if (item.legSlot != -1) JsonArmor.Legs.Add(item);
-                }
             }
-            Serialize(ItemsPath, items);
-        }
 
-        private static void SaveGroups()
-        {
-            Dictionary<int, JsonGroup> groups = [];
-            foreach (var (id, group) in RecipeGroup.recipeGroups)
+        if (!_savedRecipes)
+            try
             {
-                groups.Add(id, new(group));
+                SaveRecipes();
+                _savedRecipes = true;
             }
-            Serialize(GroupsPath, groups);
-        }
+            catch (Exception)
+            {
+            }
 
-        static RecipeSaverSystem()
-        {
-            Directory.CreateDirectory(SaverPath);
-        }
+        if (!_savedEnemies)
+            try
+            {
+                SaveEnemies();
+                _savedEnemies = true;
+            }
+            catch (Exception)
+            {
+            }
 
-        private static readonly JsonSerializerSettings settings = new()
-        {
-            ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
-            PreserveReferencesHandling = PreserveReferencesHandling.None,
-            NullValueHandling = NullValueHandling.Ignore,
-            DefaultValueHandling = DefaultValueHandling.Ignore,
-        };
-
-        private static void Serialize(string path, object value)
-        {
-            File.WriteAllText(path, JsonConvert.SerializeObject(value, Formatting.Indented, settings));
-        }
-
-        private static bool ContentsEqualOrderless<E>(IEnumerable<E> one, IEnumerable<E> two) => one.All(two.Contains) && two.All(one.Contains);
-
+        return _savedGroups && _savedItems && _savedArmors && _savedRecipes && _savedEnemies;
     }
+
+    private static void SaveEnemies()
+    {
+        List<JsonEnemy> enemies = [];
+        for (var i = -65; i < NPCLoader.NPCCount; i++)
+        {
+            enemies.Add(new JsonEnemy(i));
+        }
+
+        Serialize(EnemiesPath, enemies);
+    }
+
+    private static void SaveRecipes()
+    {
+        List<JsonRecipe> recipes = [];
+        for (var i = 0; i < Recipe.numRecipes; i++)
+        {
+            var recipe = Main.recipe[i];
+            if (recipe.Disabled) continue;
+            recipes.Add(new JsonRecipe(recipe));
+        }
+
+        Serialize(RecipesPath, recipes);
+    }
+
+    private static void SaveItems()
+    {
+        List<JsonItem> items = [];
+        for (var i = 1; i < ItemLoader.ItemCount; i++)
+        {
+            Item item = new(i);
+            if (item.type == ItemID.None) continue;
+            JsonItem jsonItem = new(item);
+            jsonItem.FindDrops();
+            items.Add(jsonItem);
+
+            if (item.headSlot != -1) JsonArmor.Heads.Add(item);
+            if (item.bodySlot != -1) JsonArmor.Bodies.Add(item);
+            if (item.legSlot != -1) JsonArmor.Legs.Add(item);
+        }
+
+        Serialize(ItemsPath, items);
+    }
+
+    private static void SaveGroups()
+    {
+        Dictionary<int, JsonGroup> groups = [];
+        foreach (var (id, group) in RecipeGroup.recipeGroups)
+        {
+            groups.Add(id, new JsonGroup(group));
+        }
+
+        Serialize(GroupsPath, groups);
+    }
+
+    static RecipeSaverSystem()
+    {
+        Directory.CreateDirectory(SaverPath);
+    }
+
+    private static readonly JsonSerializerSettings Settings = new()
+    {
+        ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+        PreserveReferencesHandling = PreserveReferencesHandling.None,
+        NullValueHandling = NullValueHandling.Ignore,
+        DefaultValueHandling = DefaultValueHandling.Ignore,
+        Converters = [new JsonLoot.LootConverter()],
+    };
+
+    private static void Serialize(string path, object value)
+    {
+        File.WriteAllText(path, JsonConvert.SerializeObject(value, Formatting.Indented, Settings));
+    }
+
+    private static bool ContentsEqualOrderless<TE>(ICollection<TE> one, ICollection<TE> two) =>
+        one.All(two.Contains) && two.All(one.Contains);
 }
