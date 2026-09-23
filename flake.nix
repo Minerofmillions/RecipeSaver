@@ -29,7 +29,7 @@
           buildInputs = packages;
 
           shellHook = ''
-            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath packages}:$LD_LIBRARY_PATH"
+            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath packages}:/run/opengl-driver/lib:/run/opengl-driver-32/lib:$LD_LIBRARY_PATH"
             echo "tModLoader development shell loaded."
           '';
         };
