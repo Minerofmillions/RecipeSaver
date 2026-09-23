@@ -14,7 +14,14 @@
         };
         packages = with pkgs; [
           dotnetCorePackages.sdk_8_0
-          fna3d
+          SDL2
+          libGL
+          vulkan-loader
+          libX11
+          libXcursor
+          libXext
+          libXi
+          libXrandr
         ];
       in
       {
