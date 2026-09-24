@@ -4,6 +4,7 @@ using JetBrains.Annotations;
 using Microsoft.Xna.Framework.Input;
 using Newtonsoft.Json;
 using Terraria.GameContent.ItemDropRules;
+using Terraria.ID;
 
 namespace RecipeSaver;
 
@@ -69,7 +70,7 @@ public class JsonLoot
             case OneFromRulesRule o:
                 foreach (var r in o.options)
                 {
-                    AddRule(r, dict, inheritedChance / (o.chanceDenominator * o.options.Length), condition);
+                    AddRule(r, dict, inheritedChance * o.chanceNumerator / (o.chanceDenominator * o.options.Length), condition);
                 }
                 o.ChainedRules.ForEach(r => AddRule(r.RuleToChain, dict, inheritedChance, condition));
                 break;
@@ -140,19 +141,19 @@ public class JsonLoot
                 var value = c.value;
                 if (value % 100 != 0L)
                 {
-                    AddItemToDict(dict, condition, 71, inheritedChance, (int)value % 100, (int)value % 100);
+                    AddItemToDict(dict, condition, ItemID.CopperCoin, inheritedChance, (int)value % 100, (int)value % 100);
                 }
                 if ((value / 100) % 100 != 0L)
                 {
-                    AddItemToDict(dict, condition, 72, inheritedChance, (int)(value / 100) % 100, (int)(value / 100) % 100);
+                    AddItemToDict(dict, condition, ItemID.SilverCoin, inheritedChance, (int)(value / 100) % 100, (int)(value / 100) % 100);
                 }
                 if ((value / 10000) % 100 != 0L)
                 {
-                    AddItemToDict(dict, condition, 72, inheritedChance, (int)(value / 10000) % 100, (int)(value / 10000) % 100);
+                    AddItemToDict(dict, condition, ItemID.GoldCoin, inheritedChance, (int)(value / 10000) % 100, (int)(value / 10000) % 100);
                 }
                 if ((value / 1000000) % 100 != 0L)
                 {
-                    AddItemToDict(dict, condition, 72, inheritedChance, (int)(value / 1000000) % 100, (int)(value / 1000000) % 100);
+                    AddItemToDict(dict, condition, ItemID.PlatinumCoin, inheritedChance, (int)(value / 1000000) % 100, (int)(value / 1000000) % 100);
                 }
                 c.ChainedRules.ForEach(r => AddRule(r.RuleToChain, dict, inheritedChance, condition));
                 break;
