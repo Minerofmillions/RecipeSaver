@@ -2,7 +2,6 @@
 using System.Linq;
 using JetBrains.Annotations;
 using Terraria;
-using Terraria.GameContent;
 using Terraria.ID;
 using Terraria.ModLoader;
 
@@ -22,6 +21,7 @@ public class JsonItem
     [UsedImplicitly] public readonly string mod;
     [UsedImplicitly] public readonly int bait;
     [UsedImplicitly] public readonly int fishingPower;
+    [UsedImplicitly] public IShimmerResult shimmerResult;
 
     public JsonItem(Item item)
     {
@@ -48,6 +48,7 @@ public class JsonItem
         OpenBag();
         FindExtractinatorInfo(TileID.Extractinator, extractinatorItems);
         FindExtractinatorInfo(TileID.ChlorophyteExtractinator, chlorophyteExtractinatorItems);
+        shimmerResult = FindShimmerResult();
     }
 
     private void OpenBag()
@@ -477,5 +478,27 @@ public class JsonItem
             if (!outputItems.TryGetValue(resultType, out var value)) value = 0;
             outputItems[resultType] = value + resultStack;
         }
+    }
+
+    private IShimmerResult FindShimmerResult()
+    {
+        var iconicItem = ItemID.Sets.ShimmerCountsAsItem[type] != -1 ? ItemID.Sets.ShimmerCountsAsItem[type] : type;
+        var sample = ContentSamples.ItemsByType[iconicItem];
+        if (ItemID.Sets.CoinLuckValue[iconicItem] > 0)
+            return new CoinLuckShimmerResult(ItemID.Sets.CoinLuckValue[iconicItem]);
+
+        if (iconicItem is ItemID.GelBalloon)
+            return new NPCSpawnShimmerResult(NPCID.TownSlimeRainbow);
+
+        if (sample.makeNPC > NPCID.None)
+        {
+            var shimmerTransform = NPCID.Sets.ShimmerTransformToNPC[sample.makeNPC];
+            return new NPCSpawnShimmerResult(shimmerTransform < 0 ? sample.makeNPC : shimmerTransform);
+        }
+        
+        if (ItemID.Sets.ShimmerTransformToItem[iconicItem] > ItemID.None)
+            return new TransmutedItemShimmerResult(ItemID.Sets.ShimmerTransformToItem[iconicItem]);
+
+        return new NoShimmerResult();
     }
 }
