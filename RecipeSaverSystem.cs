@@ -47,6 +47,9 @@ public class RecipeSaverSystem : ModSystem
             }
         }
         else needsRecalculate = true;
+        #if DEBUG
+        needsRecalculate = true;
+        #endif
 
         if (!needsRecalculate) return;
         var tries = 0;
