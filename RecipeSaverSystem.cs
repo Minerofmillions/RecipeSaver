@@ -21,11 +21,8 @@ public class RecipeSaverSystem : ModSystem
     private static readonly string ArmorSetsPath = Path.Combine(SaverPath, "ArmorSets.json");
     private static readonly string DataPath = Path.Combine(SaverPath, "_Data.json");
 
-    private static readonly Player Player = new();
-
     public override void PostAddRecipes()
     {
-        Main.player[1] = Player;
         List<JsonMod> currentMods =
         [
             .. from mod in ModLoader.Mods where mod is not null select new JsonMod(mod)
@@ -33,6 +30,9 @@ public class RecipeSaverSystem : ModSystem
 
         bool needsRecalculate;
 
+#if DEBUG
+        needsRecalculate = true;
+#else
         if (File.Exists(DataPath))
         {
             try
@@ -47,9 +47,7 @@ public class RecipeSaverSystem : ModSystem
             }
         }
         else needsRecalculate = true;
-        #if DEBUG
-        needsRecalculate = true;
-        #endif
+#endif
 
         if (!needsRecalculate) return;
         var tries = 0;

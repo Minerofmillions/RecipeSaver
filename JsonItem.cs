@@ -1,7 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using Humanizer;
 using JetBrains.Annotations;
 using Terraria;
+using Terraria.GameContent;
 using Terraria.ID;
 using Terraria.ModLoader;
 
@@ -35,8 +38,10 @@ public class JsonItem
 
         mod = item.ModItem?.Mod?.Name ?? "Terraria";
 
-        tooltip = item.ToolTip.Lines > 0 ? Enumerable.Range(0, item.ToolTip.Lines).Select(item.ToolTip.GetLine)
-            .Aggregate((a, b) => a + "\n" + b) : "";
+        tooltip = item.ToolTip.Lines > 0
+            ? Enumerable.Range(0, item.ToolTip.Lines).Select(item.ToolTip.GetLine)
+                .Aggregate((a, b) => a + "\n" + b)
+            : "";
     }
 
     public override string ToString() => name;
@@ -56,6 +61,7 @@ public class JsonItem
         var rules = Main.ItemDropsDB.GetRulesForItemID(type);
         rules.ForEach(bagItems.AddRule);
     }
+
     private void FindExtractinatorInfo(int extractinatorBlockType, IDictionary<int, int> outputItems)
     {
         var extractinatorType = ItemID.Sets.ExtractinatorMode[type];
@@ -71,16 +77,31 @@ public class JsonItem
             return new CoinLuckShimmerResult(ItemID.Sets.CoinLuckValue[iconicItem]);
 
         if (iconicItem is ItemID.GelBalloon)
-            return new NPCSpawnShimmerResult(NPCID.TownSlimeRainbow);
+            return new EntitySpawnShimmerResult(NPCID.TownSlimeRainbow);
 
         if (sample.makeNPC > NPCID.None)
         {
             var shimmerTransform = NPCID.Sets.ShimmerTransformToNPC[sample.makeNPC];
-            return new NPCSpawnShimmerResult(shimmerTransform < 0 ? sample.makeNPC : shimmerTransform);
+            return new EntitySpawnShimmerResult(shimmerTransform < 0 ? sample.makeNPC : shimmerTransform);
         }
-        
+
         if (ItemID.Sets.ShimmerTransformToItem[iconicItem] > ItemID.None)
             return new TransmutedItemShimmerResult(ItemID.Sets.ShimmerTransformToItem[iconicItem]);
+
+        var decraftingRecipeIndex = -1;
+        for (var i = 0; i < Main.recipe.Length; i++)
+        {
+            var recipe = Main.recipe[i];
+            if (recipe.createItem.type == iconicItem && !recipe.DecraftDisabled)
+                decraftingRecipeIndex = i;
+        }
+
+        if (decraftingRecipeIndex > -1)
+            return new DecraftShimmerResult(decraftingRecipeIndex,
+            [
+                .. from condition in Main.recipe[decraftingRecipeIndex].DecraftConditions
+                select condition.Description.Value
+            ]);
 
         return new NoShimmerResult();
     }
