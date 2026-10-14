@@ -3,13 +3,18 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using JetBrains.Annotations;
 using Terraria;
 using Terraria.ID;
 using Terraria.ModLoader;
 
 namespace RecipeSaver;
 
-internal readonly record struct DataFile(List<JsonMod> CurrentMods, int ExtractinatorTests);
+internal readonly record struct DataFile(
+    [UsedImplicitly] List<JsonMod> CurrentMods,
+    [UsedImplicitly] int ExtractinatorTests);
 
 public class RecipeSaverSystem : ModSystem
 {
@@ -54,7 +59,8 @@ public class RecipeSaverSystem : ModSystem
         while (tries++ < 5)
         {
             if (!TrySavingData()) continue;
-            Serialize(DataPath, new DataFile(currentMods, RecipeSaverConfig.Instance.extractinatorTests));
+            using var sw = new StreamWriter(DataPath);
+            Serializer.Serialize(sw, new DataFile(currentMods, RecipeSaverConfig.Instance.extractinatorTests));
             break;
         }
 
@@ -72,113 +78,110 @@ public class RecipeSaverSystem : ModSystem
 
     private static bool TrySavingData()
     {
-        if (!_savedGroups)
-            try
-            {
-                SaveGroups();
-                _savedGroups = true;
-            }
-            catch (Exception)
-            {
-            }
+        var groupsTask = SaveGroups();
+        var itemsTask = SaveItemsAndArmor();
+        var recipesTask = SaveRecipes();
+        var enemiesTask = SaveEnemies();
 
-        if (!_savedItems)
-            try
-            {
-                SaveItems();
-                _savedItems = true;
-            }
-            catch (Exception)
-            {
-            }
-
-        if (_savedItems && !_savedArmors)
-            try
-            {
-                var armorSets = JsonArmor.GetArmorSets();
-                Serialize(ArmorSetsPath, armorSets);
-                _savedArmors = true;
-            }
-            catch (Exception)
-            {
-            }
-
-        if (!_savedRecipes)
-            try
-            {
-                SaveRecipes();
-                _savedRecipes = true;
-            }
-            catch (Exception)
-            {
-            }
-
-        if (!_savedEnemies)
-            try
-            {
-                SaveEnemies();
-                _savedEnemies = true;
-            }
-            catch (Exception)
-            {
-            }
+        Task.WaitAll(groupsTask, itemsTask, recipesTask, enemiesTask);
 
         return _savedGroups && _savedItems && _savedArmors && _savedRecipes && _savedEnemies;
     }
 
-    private static void SaveEnemies()
-    {
-        List<JsonEnemy> enemies = [];
-        for (var i = -65; i < NPCLoader.NPCCount; i++)
+    private static Task SaveEnemies() =>
+        Task.Run(() =>
         {
-            enemies.Add(new JsonEnemy(i));
-        }
+            if (_savedEnemies) return;
+            using var sw = new StreamWriter(EnemiesPath);
+            using var writer = new JsonTextWriter(sw);
+            writer.WriteStartArray();
+            for (var i = -65; i < NPCLoader.NPCCount; i++)
+            {
+                Serializer.Serialize(writer, new JsonEnemy(i));
+            }
 
-        Serialize(EnemiesPath, enemies);
+            writer.WriteEndArray();
+            _savedEnemies = true;
+        });
+
+    private static Task SaveRecipes() =>
+        Task.Run(() =>
+        {
+            if (_savedRecipes) return;
+            using var sw = new StreamWriter(RecipesPath);
+            using var writer = new JsonTextWriter(sw);
+            writer.WriteStartArray();
+            for (var i = 0; i < Recipe.numRecipes; i++)
+            {
+                var recipe = Main.recipe[i];
+                if (recipe.Disabled) continue;
+                Serializer.Serialize(writer, new JsonRecipe(recipe));
+            }
+
+            writer.WriteEndArray();
+            _savedRecipes = true;
+        });
+
+    private static async Task SaveItemsAndArmor()
+    {
+        await SaveItems();
+        await SaveArmors();
     }
 
-    private static void SaveRecipes()
+    private static Task SaveItems() => Task.Run(() =>
     {
-        List<JsonRecipe> recipes = [];
-        for (var i = 0; i < Recipe.numRecipes; i++)
-        {
-            var recipe = Main.recipe[i];
-            if (recipe.Disabled) continue;
-            recipes.Add(new JsonRecipe(recipe));
-        }
-
-        Serialize(RecipesPath, recipes);
-    }
-
-    private static void SaveItems()
-    {
-        List<JsonItem> items = [];
+        if (_savedItems) return;
+        var item = new Item();
+        using var itemStream = new StreamWriter(ItemsPath);
+        using var itemWriter = new JsonTextWriter(itemStream);
+        itemWriter.WriteStartArray();
         for (var i = 1; i < ItemLoader.ItemCount; i++)
         {
-            Item item = new(i);
+            item.SetDefaults(i);
             if (item.type == ItemID.None) continue;
             JsonItem jsonItem = new(item);
             jsonItem.FindDrops();
-            items.Add(jsonItem);
+            Serializer.Serialize(itemWriter, jsonItem);
 
-            if (item.headSlot != -1) JsonArmor.Heads.Add(item);
-            if (item.bodySlot != -1) JsonArmor.Bodies.Add(item);
-            if (item.legSlot != -1) JsonArmor.Legs.Add(item);
+            if (item.headSlot != -1) JsonArmor.Heads.Add(i);
+            if (item.bodySlot != -1) JsonArmor.Bodies.Add(i);
+            if (item.legSlot != -1) JsonArmor.Legs.Add(i);
         }
 
-        Serialize(ItemsPath, items);
-    }
+        itemWriter.WriteEndArray();
+        _savedItems = true;
+    });
 
-    private static void SaveGroups()
+    private static Task SaveArmors() => Task.Run(() =>
     {
-        Dictionary<int, JsonGroup> groups = [];
+        if (_savedArmors) return;
+        using var armorStream = new StreamWriter(ArmorSetsPath);
+        using var armorWriter = new JsonTextWriter(armorStream);
+        armorWriter.WriteStartArray();
+        foreach (var armorSet in JsonArmor.GetArmorSetsEnumerator())
+        {
+            Serializer.Serialize(armorWriter, armorSet);
+        }
+
+        armorWriter.WriteEndArray();
+        _savedArmors = true;
+    });
+
+    private static Task SaveGroups() => Task.Run(() =>
+    {
+        if (_savedGroups) return;
+        using var sw = new StreamWriter(GroupsPath);
+        using var writer = new JsonTextWriter(sw);
+        writer.WriteStartObject();
         foreach (var (id, group) in RecipeGroup.recipeGroups)
         {
-            groups.Add(id, new JsonGroup(group));
+            writer.WritePropertyName(id.ToString());
+            Serializer.Serialize(writer, new JsonGroup(group));
         }
 
-        Serialize(GroupsPath, groups);
-    }
+        writer.WriteEndObject();
+        _savedGroups = true;
+    });
 
     static RecipeSaverSystem()
     {
@@ -194,10 +197,15 @@ public class RecipeSaverSystem : ModSystem
         Converters = [new JsonLoot.LootConverter()],
     };
 
-    private static void Serialize(string path, object value)
+    private static readonly JsonSerializer Serializer = new()
     {
-        File.WriteAllText(path, JsonConvert.SerializeObject(value, Formatting.Indented, Settings));
-    }
+        ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+        PreserveReferencesHandling = PreserveReferencesHandling.None,
+        NullValueHandling = NullValueHandling.Ignore,
+        DefaultValueHandling = DefaultValueHandling.Ignore,
+        Converters = { new JsonLoot.LootConverter() },
+        Formatting = Formatting.Indented,
+    };
 
     private static bool ContentsEqualOrderless<TE>(ICollection<TE> one, ICollection<TE> two) =>
         one.All(two.Contains) && two.All(one.Contains);
