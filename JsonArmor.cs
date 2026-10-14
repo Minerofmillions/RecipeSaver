@@ -7,21 +7,39 @@ namespace RecipeSaver;
 
 public class JsonArmor
 {
-    public static readonly List<Item> Heads = [];
-    public static readonly List<Item> Bodies = [];
-    public static readonly List<Item> Legs = [];
+    public static readonly HashSet<int> Heads = [];
+    public static readonly HashSet<int> Bodies = [];
+    public static readonly HashSet<int> Legs = [];
 
-    public static HashSet<JsonArmor> GetArmorSets()
+    private static readonly Item HeadItem = new();
+    private static readonly Item BodyItem = new();
+    private static readonly Item LegsItem = new();
+
+    public static IEnumerable<JsonArmor> GetArmorSetsEnumerator()
     {
-        Main.player[0] = new Player();
-        var player = Main.player[0];
-        HashSet<JsonArmor> armorSets = [];
+        var player = new Player
+        {
+            armor = [HeadItem, BodyItem, LegsItem]
+        };
+        Main.player[0] = player;
         foreach (var head in Heads)
         {
             SetHead(player, head);
+            var (headSetBonus, headDefenseBonus) = EvaluateArmorSet(player);
+            if (headSetBonus != "")
+            {
+                yield return new JsonArmor(head, 0, 0, headSetBonus, HeadItem.defense + headDefenseBonus);
+                continue;
+            }
             foreach (var body in Bodies)
             {
                 SetBody(player, body);
+                var (noLegsSetBonus, noLegsDefenseBonus) = EvaluateArmorSet(player);
+                if (noLegsSetBonus != "")
+                {
+                    yield return new JsonArmor(head, body, 0, noLegsSetBonus, HeadItem.defense + BodyItem.defense + noLegsDefenseBonus);
+                    continue;
+                }
                 foreach (var legs in Legs)
                 {
                     SetLegs(player, legs);
@@ -30,76 +48,68 @@ public class JsonArmor
                     var (fullSetBonus, fullDefenseBonus) = EvaluateArmorSet(player);
 
                     if (fullSetBonus == "") continue;
-                    SetLegs(player, new Item());
-                    var (noLegsSetBonus, noLegsDefenseBonus) = EvaluateArmorSet(player);
-                    SetLegs(player, legs);
 
-                    SetBody(player, new Item());
+                    SetBody(player, 0);
                     var (noBodySetBonus, noBodyDefenseBonus) = EvaluateArmorSet(player);
                     SetBody(player, body);
 
-                    SetHead(player, new Item());
+                    SetHead(player, 0);
                     var (noHeadSetBonus, noHeadDefenseBonus) = EvaluateArmorSet(player);
                     SetHead(player, head);
 
-                    if (noLegsSetBonus != "")
-                        armorSets.Add(new JsonArmor(head, body, null, noLegsSetBonus,
-                            head.defense + body.defense + noLegsDefenseBonus));
-                    else if (noBodySetBonus != "")
-                        armorSets.Add(new JsonArmor(head, null, legs, noBodySetBonus,
-                            head.defense + legs.defense + noBodyDefenseBonus));
+                    if (noBodySetBonus != "")
+                        yield return new JsonArmor(head, 0, legs, noBodySetBonus,
+                            HeadItem.defense + LegsItem.defense + noBodyDefenseBonus);
                     else if (noHeadSetBonus != "")
-                        armorSets.Add(new JsonArmor(null, body, legs, noHeadSetBonus,
-                            body.defense + legs.defense + noHeadDefenseBonus));
+                        yield return new JsonArmor(0, body, legs, noHeadSetBonus,
+                            BodyItem.defense + LegsItem.defense + noHeadDefenseBonus);
                     else
-                        armorSets.Add(new JsonArmor(head, body, legs, fullSetBonus,
-                            head.defense + body.defense + legs.defense + fullDefenseBonus));
+                        yield return new JsonArmor(head, body, legs, fullSetBonus,
+                            HeadItem.defense + BodyItem.defense + LegsItem.defense + fullDefenseBonus);
                 }
             }
         }
-
-        return armorSets;
     }
 
-    private static void SetHead(Player player, Item head)
+    private static void SetHead(Player player, int head)
     {
-        player.head = head.headSlot;
-        player.armor[0] = head;
+        HeadItem.SetDefaults(head);
+        player.head = HeadItem.headSlot;
     }
 
-    private static void SetBody(Player player, Item body)
+    private static void SetBody(Player player, int body)
     {
-        player.body = body.bodySlot;
-        player.armor[1] = body;
+        BodyItem.SetDefaults(body);
+        player.body = BodyItem.bodySlot;
     }
 
-    private static void SetLegs(Player player, Item legs)
+    private static void SetLegs(Player player, int legs)
     {
-        player.legs = legs.legSlot;
-        player.armor[2] = legs;
+        LegsItem.SetDefaults(legs);
+        player.legs = LegsItem.legSlot;
     }
 
-    private static Tuple<string, int> EvaluateArmorSet(Player player)
+    private static Tuple<string, Player.DefenseStat> EvaluateArmorSet(Player player)
     {
         player.UpdateArmorSets(255);
         var fullSetBonus = player.setBonus;
-        int fullDefenceBonus = player.statDefense;
+        var fullDefenceBonus = player.statDefense;
 
-        return new Tuple<string, int>(fullSetBonus, fullDefenceBonus);
+        return new Tuple<string, Player.DefenseStat>(fullSetBonus, fullDefenceBonus);
     }
 
-    [UsedImplicitly] public readonly JsonItem head;
-    [UsedImplicitly] public readonly JsonItem body;
-    [UsedImplicitly] public readonly JsonItem legs;
+    [UsedImplicitly] public readonly int head;
+    [UsedImplicitly] public readonly int body;
+    [UsedImplicitly] public readonly int legs;
 
     [UsedImplicitly] public string setBonus;
     [UsedImplicitly] public int setDefense;
 
-    private JsonArmor(Item head, Item body, Item legs, string setBonus, int setDefense)
+    private JsonArmor(int head, int body, int legs, string setBonus, int setDefense)
     {
-        if (head is not null) this.head = new JsonItem(head);
-        if (body is not null) this.body = new JsonItem(body);
-        if (legs is not null) this.legs = new JsonItem(legs);
+        this.head = head;
+        this.body = body;
+        this.legs = legs;
         this.setBonus = setBonus;
         this.setDefense = setDefense;
     }
@@ -107,9 +117,9 @@ public class JsonArmor
     public override bool Equals(object obj)
     {
         if (obj is not JsonArmor armor) return false;
-        return armor.head?.type == head?.type && armor.body?.type == body?.type && armor.legs?.type == legs?.type;
+        return armor.head == head && armor.body == body && armor.legs == legs;
     }
 
     public override int GetHashCode() =>
-        (head?.GetHashCode() ?? 0) ^ (body?.GetHashCode() ?? 0) ^ (legs?.GetHashCode() ?? 0);
+        head.GetHashCode() ^ body.GetHashCode() ^ legs.GetHashCode();
 }
