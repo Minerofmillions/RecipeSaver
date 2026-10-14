@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using JetBrains.Annotations;
-using Microsoft.Xna.Framework.Input;
 using Newtonsoft.Json;
 using Terraria.GameContent.ItemDropRules;
 using Terraria.ID;
@@ -10,34 +9,29 @@ namespace RecipeSaver;
 
 public class JsonLoot
 {
-    [UsedImplicitly]
-    public readonly IDictionary<int, IDictionary<string, float>> globalLoot =
+    [UsedImplicitly] public readonly IDictionary<int, IDictionary<string, float>> globalLoot =
         new SortedDictionary<int, IDictionary<string, float>>();
 
-    [UsedImplicitly]
-    public readonly IDictionary<int, IDictionary<string, float>> normalLoot =
+    [UsedImplicitly] public readonly IDictionary<int, IDictionary<string, float>> normalLoot =
         new SortedDictionary<int, IDictionary<string, float>>();
 
-    [UsedImplicitly]
-    public readonly IDictionary<int, IDictionary<string, float>> expertLoot =
+    [UsedImplicitly] public readonly IDictionary<int, IDictionary<string, float>> expertLoot =
         new SortedDictionary<int, IDictionary<string, float>>();
 
-    [UsedImplicitly]
-    public readonly IDictionary<int, IDictionary<string, float>> masterLoot =
+    [UsedImplicitly] public readonly IDictionary<int, IDictionary<string, float>> masterLoot =
         new SortedDictionary<int, IDictionary<string, float>>();
 
     private bool GlobalEmpty => DictIsEmpty(globalLoot);
     private bool NormalEmpty => DictIsEmpty(normalLoot);
     private bool ExpertEmpty => DictIsEmpty(expertLoot);
     private bool MasterEmpty => DictIsEmpty(masterLoot);
-    private bool IsEmpty => GlobalEmpty && NormalEmpty && ExpertEmpty && MasterEmpty;
 
-    private static void AddItemToDict(IDictionary<int, IDictionary<string, float>> dict, string condition, int itemId,
-        int numerator, int denominator, int min, int max, float inheritedChance = 1f) =>
+    private static void AddItemToDict(IDictionary<int, IDictionary<string, float>> dict, string condition,
+        int itemId, int numerator, int denominator, int min, int max, float inheritedChance = 1f) =>
         AddItemToDict(dict, condition, itemId, inheritedChance * numerator / denominator, min, max);
 
-    private static void AddItemToDict(IDictionary<int, IDictionary<string, float>> dict, string condition, int itemId,
-        float chance, int min, int max)
+    private static void AddItemToDict(IDictionary<int, IDictionary<string, float>> dict, string condition,
+        int itemId, float chance, int min, int max)
     {
         if (!dict.TryGetValue(itemId, out var conditionalLoot))
         {
@@ -219,8 +213,7 @@ public class JsonLoot
         public override bool CanWrite => true;
 
         public override JsonLoot ReadJson(JsonReader reader, Type objectType, JsonLoot existingValue,
-            bool hasExistingValue,
-            JsonSerializer serializer)
+            bool hasExistingValue, JsonSerializer serializer)
         {
             throw new NotImplementedException();
         }
