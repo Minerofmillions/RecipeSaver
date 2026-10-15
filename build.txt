@@ -1,5 +1,5 @@
 displayName = Recipe Saver
 author = Minerofmillions
-version = 1.2.0.2
+version = 1.2.0.4
 playableOnPreview = false
 side = client

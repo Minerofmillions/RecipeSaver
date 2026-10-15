@@ -64,10 +64,14 @@ public class RecipeSaverSystem : ModSystem
             break;
         }
 
-        if (tries == 5)
-        {
-            Mod.Logger.Info("Couldn't save data.");
-        }
+        if (tries != 5) return;
+        Mod.Logger.Info("Couldn't save data.");
+        File.Delete(GroupsPath);
+        File.Delete(ItemsPath);
+        File.Delete(RecipesPath);
+        File.Delete(EnemiesPath);
+        File.Delete(ArmorSetsPath);
+        File.Delete(DataPath);
     }
 
     private static bool _savedGroups;
@@ -78,13 +82,13 @@ public class RecipeSaverSystem : ModSystem
 
     private static bool TrySavingData()
     {
+        var armorsTask = SaveArmors();
         var groupsTask = SaveGroups();
-        var itemsTask = SaveItemsAndArmor();
+        var itemsTask = SaveItems();
         var recipesTask = SaveRecipes();
         var enemiesTask = SaveEnemies();
 
-        Task.WaitAll(groupsTask, itemsTask, recipesTask, enemiesTask);
-
+        Task.WaitAll(armorsTask, groupsTask, itemsTask, recipesTask, enemiesTask);
         return _savedGroups && _savedItems && _savedArmors && _savedRecipes && _savedEnemies;
     }
 
@@ -122,19 +126,13 @@ public class RecipeSaverSystem : ModSystem
             _savedRecipes = true;
         });
 
-    private static async Task SaveItemsAndArmor()
-    {
-        await SaveItems();
-        await SaveArmors();
-    }
-
-    private static Task SaveItems() => Task.Run(() =>
+    private static Task SaveItems() => Task.Run(async () =>
     {
         if (_savedItems) return;
         var item = new Item();
-        using var itemStream = new StreamWriter(ItemsPath);
-        using var itemWriter = new JsonTextWriter(itemStream);
-        itemWriter.WriteStartArray();
+        await using var itemStream = new StreamWriter(ItemsPath);
+        await using var itemWriter = new JsonTextWriter(itemStream);
+        await itemWriter.WriteStartArrayAsync();
         for (var i = 1; i < ItemLoader.ItemCount; i++)
         {
             item.SetDefaults(i);
@@ -143,27 +141,28 @@ public class RecipeSaverSystem : ModSystem
             jsonItem.FindDrops();
             Serializer.Serialize(itemWriter, jsonItem);
 
-            if (item.headSlot != -1) JsonArmor.Heads.Add(i);
-            if (item.bodySlot != -1) JsonArmor.Bodies.Add(i);
-            if (item.legSlot != -1) JsonArmor.Legs.Add(i);
+            if (item.headSlot != -1) await JsonArmor.AddHead(i);
+            if (item.bodySlot != -1) await JsonArmor.AddBody(i);
+            if (item.legSlot != -1) await JsonArmor.AddLegs(i);
         }
 
-        itemWriter.WriteEndArray();
+        await itemWriter.WriteEndArrayAsync();
+        JsonArmor.FinishChannel();
         _savedItems = true;
     });
 
-    private static Task SaveArmors() => Task.Run(() =>
+    private static Task SaveArmors() => Task.Run(async () =>
     {
         if (_savedArmors) return;
-        using var armorStream = new StreamWriter(ArmorSetsPath);
-        using var armorWriter = new JsonTextWriter(armorStream);
-        armorWriter.WriteStartArray();
-        foreach (var armorSet in JsonArmor.GetArmorSetsEnumerator())
+        await using var armorStream = new StreamWriter(ArmorSetsPath);
+        await using var armorWriter = new JsonTextWriter(armorStream);
+        await armorWriter.WriteStartArrayAsync();
+        await foreach (var armorSet in JsonArmor.GetArmorSetsAsync())
         {
             Serializer.Serialize(armorWriter, armorSet);
         }
 
-        armorWriter.WriteEndArray();
+        await armorWriter.WriteEndArrayAsync();
         _savedArmors = true;
     });
 

@@ -1,99 +1,138 @@
 ﻿using Terraria;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Channels;
+using System.Threading.Tasks;
 using JetBrains.Annotations;
 
 namespace RecipeSaver;
 
 public class JsonArmor
 {
-    public static readonly HashSet<int> Heads = [];
-    public static readonly HashSet<int> Bodies = [];
-    public static readonly HashSet<int> Legs = [];
+    private static readonly HashSet<int> Heads = [];
+    private static readonly HashSet<int> Bodies = [];
+    private static readonly HashSet<int> Legs = [];
+    private static readonly List<Tuple<int, int>> ShortSets = [];
 
     private static readonly Item HeadItem = new();
     private static readonly Item BodyItem = new();
     private static readonly Item LegsItem = new();
+    private static readonly Player Player = new();
 
-    public static IEnumerable<JsonArmor> GetArmorSetsEnumerator()
+    private static int TotalDefense => (HeadItem.active ? HeadItem.defense : 0) + (BodyItem.active ? BodyItem.defense : 0) +
+                                       (LegsItem.active ? LegsItem.defense : 0) + Player.statDefense;
+
+    static JsonArmor()
     {
-        var player = new Player
+        Main.player[0] = Player;
+        Player.armor[0] = HeadItem;
+        Player.armor[1] = BodyItem;
+        Player.armor[2] = LegsItem;
+    }
+
+    private static readonly Channel<JsonArmor> ArmorChannel = Channel.CreateUnbounded<JsonArmor>();
+
+    public static IAsyncEnumerable<JsonArmor> GetArmorSetsAsync() => ArmorChannel.Reader.ReadAllAsync();
+
+    public static void FinishChannel() => ArmorChannel.Writer.Complete();
+
+    public static async Task AddHead(int head)
+    {
+        foreach (var body in Bodies)
         {
-            armor = [HeadItem, BodyItem, LegsItem]
-        };
-        Main.player[0] = player;
-        foreach (var head in Heads)
-        {
-            SetHead(player, head);
-            var (headSetBonus, headDefenseBonus) = EvaluateArmorSet(player);
-            if (headSetBonus != "")
+            SetArmor(head, body, 0);
+            if (Player.setBonus != "")
             {
-                yield return new JsonArmor(head, 0, 0, headSetBonus, HeadItem.defense + headDefenseBonus);
+                await ArmorChannel.Writer.WriteAsync(new JsonArmor(head, body, 0, Player.setBonus, TotalDefense));
+                ShortSets.Add(new Tuple<int, int>(head, body));
                 continue;
             }
-            foreach (var body in Bodies)
+
+            foreach (var legs in Legs)
             {
-                SetBody(player, body);
-                var (noLegsSetBonus, noLegsDefenseBonus) = EvaluateArmorSet(player);
-                if (noLegsSetBonus != "")
-                {
-                    yield return new JsonArmor(head, body, 0, noLegsSetBonus, HeadItem.defense + BodyItem.defense + noLegsDefenseBonus);
-                    continue;
-                }
-                foreach (var legs in Legs)
-                {
-                    SetLegs(player, legs);
-                    player.statDefense = Player.DefenseStat.Default;
-
-                    var (fullSetBonus, fullDefenseBonus) = EvaluateArmorSet(player);
-
-                    if (fullSetBonus == "") continue;
-
-                    SetBody(player, 0);
-                    var (noBodySetBonus, noBodyDefenseBonus) = EvaluateArmorSet(player);
-                    SetBody(player, body);
-
-                    SetHead(player, 0);
-                    var (noHeadSetBonus, noHeadDefenseBonus) = EvaluateArmorSet(player);
-                    SetHead(player, head);
-
-                    if (noBodySetBonus != "")
-                        yield return new JsonArmor(head, 0, legs, noBodySetBonus,
-                            HeadItem.defense + LegsItem.defense + noBodyDefenseBonus);
-                    else if (noHeadSetBonus != "")
-                        yield return new JsonArmor(0, body, legs, noHeadSetBonus,
-                            BodyItem.defense + LegsItem.defense + noHeadDefenseBonus);
-                    else
-                        yield return new JsonArmor(head, body, legs, fullSetBonus,
-                            HeadItem.defense + BodyItem.defense + LegsItem.defense + fullDefenseBonus);
-                }
+                SetLegs(legs);
+                if (Player.setBonus == "") continue;
+                await ArmorChannel.Writer.WriteAsync(new JsonArmor(head, body, legs, Player.setBonus, TotalDefense));
             }
         }
+
+        Heads.Add(head);
     }
 
-    private static void SetHead(Player player, int head)
+    public static async Task AddBody(int body)
+    {
+        foreach (var head in Heads)
+        {
+            SetArmor(head, body, 0);
+            if (Player.setBonus != "")
+            {
+                await ArmorChannel.Writer.WriteAsync(new JsonArmor(head, body, 0, Player.setBonus, TotalDefense));
+                ShortSets.Add(new Tuple<int, int>(head, body));
+                continue;
+            }
+
+            foreach (var legs in Legs)
+            {
+                SetLegs(legs);
+                if (Player.setBonus == "") continue;
+                await ArmorChannel.Writer.WriteAsync(new JsonArmor(head, body, legs, Player.setBonus, TotalDefense));
+            }
+        }
+        Bodies.Add(body);
+    }
+
+    public static async Task AddLegs(int legs)
+    {
+        foreach (var head in Heads)
+        {
+            foreach (var body in Bodies.Where(body => !ShortSets.Any(tup => head == tup.Item1 && body == tup.Item2)))
+            {
+                SetArmor(head, body, legs);
+                if (Player.setBonus == "") continue;
+                await ArmorChannel.Writer.WriteAsync(new JsonArmor(head, body, legs, Player.setBonus, TotalDefense));
+            }
+        }
+        Legs.Add(legs);
+    }
+
+    private static void SetArmor(int head, int body, int legs)
     {
         HeadItem.SetDefaults(head);
-        player.head = HeadItem.headSlot;
+        Player.head = HeadItem.headSlot;
+        BodyItem.SetDefaults(body);
+        Player.body = BodyItem.bodySlot;
+        LegsItem.SetDefaults(legs);
+        Player.legs = LegsItem.legSlot;
+        Player.UpdateArmorSets(0);
     }
 
-    private static void SetBody(Player player, int body)
+    private static void SetHead(int head)
+    {
+        HeadItem.SetDefaults(head);
+        Player.head = HeadItem.headSlot;
+        Player.UpdateArmorSets(0);
+    }
+
+    private static void SetBody(int body)
     {
         BodyItem.SetDefaults(body);
-        player.body = BodyItem.bodySlot;
+        Player.body = BodyItem.bodySlot;
+        Player.UpdateArmorSets(0);
     }
 
-    private static void SetLegs(Player player, int legs)
+    private static void SetLegs(int legs)
     {
         LegsItem.SetDefaults(legs);
-        player.legs = LegsItem.legSlot;
+        Player.legs = LegsItem.legSlot;
+        Player.UpdateArmorSets(0);
     }
 
-    private static Tuple<string, Player.DefenseStat> EvaluateArmorSet(Player player)
+    private static Tuple<string, Player.DefenseStat> EvaluateArmorSet()
     {
-        player.UpdateArmorSets(255);
-        var fullSetBonus = player.setBonus;
-        var fullDefenceBonus = player.statDefense;
+        Player.UpdateArmorSets(255);
+        var fullSetBonus = Player.setBonus;
+        var fullDefenceBonus = Player.statDefense;
 
         return new Tuple<string, Player.DefenseStat>(fullSetBonus, fullDefenceBonus);
     }
