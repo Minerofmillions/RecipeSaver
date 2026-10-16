@@ -65,7 +65,7 @@ public class RecipeSaverSystem : ModSystem
         }
 
         var elapsed = Stopwatch.GetElapsedTime(startTime);
-        Mod.Logger.Info($"Saved data in: {elapsed:mm\\:ss.fff}");
+        Mod.Logger.Info($"Saved data in: {elapsed}");
         if (tries != 5) return;
         Mod.Logger.Info("Couldn't save data.");
         File.Delete(GroupsPath);
