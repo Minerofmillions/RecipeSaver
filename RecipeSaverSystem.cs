@@ -45,7 +45,7 @@ public class RecipeSaverSystem : ModSystem
                 needsRecalculate = !ContentsEqualOrderless(currentMods, oldConfig.CurrentMods) ||
                                    RecipeSaverConfig.Instance.extractinatorTests != oldConfig.ExtractinatorTests;
             }
-            catch (Exception)
+            catch (System.Exception)
             {
                 needsRecalculate = true;
             }
