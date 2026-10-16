@@ -39,6 +39,7 @@ public class JsonArmor
 
     public static async Task AddHead(int head)
     {
+        Heads.Add(head);
         foreach (var body in Bodies)
         {
             SetArmor(head, body, 0);
@@ -57,11 +58,11 @@ public class JsonArmor
             }
         }
 
-        Heads.Add(head);
     }
 
     public static async Task AddBody(int body)
     {
+        Bodies.Add(body);
         foreach (var head in Heads)
         {
             SetArmor(head, body, 0);
@@ -79,11 +80,11 @@ public class JsonArmor
                 await ArmorChannel.Writer.WriteAsync(new JsonArmor(head, body, legs, Player.setBonus, TotalDefense));
             }
         }
-        Bodies.Add(body);
     }
 
     public static async Task AddLegs(int legs)
     {
+        Legs.Add(legs);
         foreach (var head in Heads)
         {
             foreach (var body in Bodies.Where(body => !ShortSets.Any(tup => head == tup.Item1 && body == tup.Item2)))
@@ -93,7 +94,6 @@ public class JsonArmor
                 await ArmorChannel.Writer.WriteAsync(new JsonArmor(head, body, legs, Player.setBonus, TotalDefense));
             }
         }
-        Legs.Add(legs);
     }
 
     private static void SetArmor(int head, int body, int legs)

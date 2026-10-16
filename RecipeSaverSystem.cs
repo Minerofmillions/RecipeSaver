@@ -1,9 +1,8 @@
 ﻿using Newtonsoft.Json;
-using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Terraria;
@@ -55,6 +54,7 @@ public class RecipeSaverSystem : ModSystem
 #endif
 
         if (!needsRecalculate) return;
+        var startTime = Stopwatch.GetTimestamp();
         var tries = 0;
         while (tries++ < 5)
         {
@@ -64,6 +64,8 @@ public class RecipeSaverSystem : ModSystem
             break;
         }
 
+        var elapsed = Stopwatch.GetElapsedTime(startTime);
+        Mod.Logger.Info($"Saved data in: {elapsed:mm\\:ss.fff}");
         if (tries != 5) return;
         Mod.Logger.Info("Couldn't save data.");
         File.Delete(GroupsPath);
@@ -133,6 +135,7 @@ public class RecipeSaverSystem : ModSystem
         await using var itemStream = new StreamWriter(ItemsPath);
         await using var itemWriter = new JsonTextWriter(itemStream);
         await itemWriter.WriteStartArrayAsync();
+        List<Task> armorTasks = [];
         for (var i = 1; i < ItemLoader.ItemCount; i++)
         {
             item.SetDefaults(i);
@@ -141,11 +144,12 @@ public class RecipeSaverSystem : ModSystem
             jsonItem.FindDrops();
             Serializer.Serialize(itemWriter, jsonItem);
 
-            if (item.headSlot != -1) await JsonArmor.AddHead(i);
-            if (item.bodySlot != -1) await JsonArmor.AddBody(i);
-            if (item.legSlot != -1) await JsonArmor.AddLegs(i);
+            if (item.headSlot != -1) armorTasks.Add(JsonArmor.AddHead(i));
+            if (item.bodySlot != -1) armorTasks.Add(JsonArmor.AddBody(i));
+            if (item.legSlot != -1) armorTasks.Add(JsonArmor.AddLegs(i));
         }
 
+        foreach (var task in armorTasks) await task;
         await itemWriter.WriteEndArrayAsync();
         JsonArmor.FinishChannel();
         _savedItems = true;
@@ -186,15 +190,6 @@ public class RecipeSaverSystem : ModSystem
     {
         Directory.CreateDirectory(SaverPath);
     }
-
-    private static readonly JsonSerializerSettings Settings = new()
-    {
-        ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
-        PreserveReferencesHandling = PreserveReferencesHandling.None,
-        NullValueHandling = NullValueHandling.Ignore,
-        DefaultValueHandling = DefaultValueHandling.Ignore,
-        Converters = [new JsonLoot.LootConverter()],
-    };
 
     private static readonly JsonSerializer Serializer = new()
     {
