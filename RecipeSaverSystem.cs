@@ -58,7 +58,9 @@ public class RecipeSaverSystem : ModSystem
         var tries = 0;
         while (tries++ < 5)
         {
-            if (!TrySavingData()) continue;
+            var saveTask = TrySavingData();
+            saveTask.Wait();
+            if (!saveTask.Result) continue;
             using var sw = new StreamWriter(DataPath);
             Serializer.Serialize(sw, new DataFile(currentMods, RecipeSaverConfig.Instance.extractinatorTests));
             break;
@@ -82,7 +84,7 @@ public class RecipeSaverSystem : ModSystem
     private static bool _savedEnemies;
     private static bool _savedArmors;
 
-    private static bool TrySavingData()
+    private static async Task<bool> TrySavingData()
     {
         var armorsTask = SaveArmors();
         var groupsTask = SaveGroups();
@@ -90,45 +92,47 @@ public class RecipeSaverSystem : ModSystem
         var recipesTask = SaveRecipes();
         var enemiesTask = SaveEnemies();
 
-        Task.WaitAll(armorsTask, groupsTask, itemsTask, recipesTask, enemiesTask);
+        await groupsTask;
+        await itemsTask;
+        await armorsTask;
+        await recipesTask;
+        await enemiesTask;
         return _savedGroups && _savedItems && _savedArmors && _savedRecipes && _savedEnemies;
     }
 
-    private static Task SaveEnemies() =>
-        Task.Run(() =>
+    private static async Task SaveEnemies()
+    {
+        if (_savedEnemies) return;
+        await using var sw = new StreamWriter(EnemiesPath);
+        await using var writer = new JsonTextWriter(sw);
+        await writer.WriteStartArrayAsync();
+        for (var i = -65; i < NPCLoader.NPCCount; i++)
         {
-            if (_savedEnemies) return;
-            using var sw = new StreamWriter(EnemiesPath);
-            using var writer = new JsonTextWriter(sw);
-            writer.WriteStartArray();
-            for (var i = -65; i < NPCLoader.NPCCount; i++)
-            {
-                Serializer.Serialize(writer, new JsonEnemy(i));
-            }
+            Serializer.Serialize(writer, new JsonEnemy(i));
+        }
 
-            writer.WriteEndArray();
-            _savedEnemies = true;
-        });
+        await writer.WriteEndArrayAsync();
+        _savedEnemies = true;
+    }
 
-    private static Task SaveRecipes() =>
-        Task.Run(() =>
+    private static async Task SaveRecipes()
+    {
+        if (_savedRecipes) return;
+        await using var sw = new StreamWriter(RecipesPath);
+        await using var writer = new JsonTextWriter(sw);
+        await writer.WriteStartArrayAsync();
+        for (var i = 0; i < Recipe.numRecipes; i++)
         {
-            if (_savedRecipes) return;
-            using var sw = new StreamWriter(RecipesPath);
-            using var writer = new JsonTextWriter(sw);
-            writer.WriteStartArray();
-            for (var i = 0; i < Recipe.numRecipes; i++)
-            {
-                var recipe = Main.recipe[i];
-                if (recipe.Disabled) continue;
-                Serializer.Serialize(writer, new JsonRecipe(recipe));
-            }
+            var recipe = Main.recipe[i];
+            if (recipe.Disabled) continue;
+            Serializer.Serialize(writer, new JsonRecipe(recipe));
+        }
 
-            writer.WriteEndArray();
-            _savedRecipes = true;
-        });
+        await writer.WriteEndArrayAsync();
+        _savedRecipes = true;
+    }
 
-    private static Task SaveItems() => Task.Run(async () =>
+    private static async Task SaveItems()
     {
         if (_savedItems) return;
         var item = new Item();
@@ -153,9 +157,9 @@ public class RecipeSaverSystem : ModSystem
         await itemWriter.WriteEndArrayAsync();
         JsonArmor.FinishChannel();
         _savedItems = true;
-    });
+    }
 
-    private static Task SaveArmors() => Task.Run(async () =>
+    private static async Task SaveArmors()
     {
         if (_savedArmors) return;
         await using var armorStream = new StreamWriter(ArmorSetsPath);
@@ -168,23 +172,23 @@ public class RecipeSaverSystem : ModSystem
 
         await armorWriter.WriteEndArrayAsync();
         _savedArmors = true;
-    });
+    }
 
-    private static Task SaveGroups() => Task.Run(() =>
+    private static async Task SaveGroups()
     {
         if (_savedGroups) return;
-        using var sw = new StreamWriter(GroupsPath);
-        using var writer = new JsonTextWriter(sw);
-        writer.WriteStartObject();
+        await using var sw = new StreamWriter(GroupsPath);
+        await using var writer = new JsonTextWriter(sw);
+        await writer.WriteStartObjectAsync();
         foreach (var (id, group) in RecipeGroup.recipeGroups)
         {
-            writer.WritePropertyName(id.ToString());
+            await writer.WritePropertyNameAsync(id.ToString());
             Serializer.Serialize(writer, new JsonGroup(group));
         }
 
-        writer.WriteEndObject();
+        await writer.WriteEndObjectAsync();
         _savedGroups = true;
-    });
+    }
 
     static RecipeSaverSystem()
     {
