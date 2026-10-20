@@ -1,8 +1,11 @@
-﻿using Newtonsoft.Json;
+﻿using System;
+using System.Collections.Concurrent;
+using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Terraria;
@@ -32,11 +35,9 @@ public class RecipeSaverSystem : ModSystem
             .. from mod in ModLoader.Mods where mod is not null select new JsonMod(mod)
         ];
 
+#if !DEBUG
         bool needsRecalculate;
 
-#if DEBUG
-        needsRecalculate = true;
-#else
         if (File.Exists(DataPath))
         {
             try
@@ -51,9 +52,10 @@ public class RecipeSaverSystem : ModSystem
             }
         }
         else needsRecalculate = true;
-#endif
 
         if (!needsRecalculate) return;
+#endif
+
         var startTime = Stopwatch.GetTimestamp();
         var tries = 0;
         while (tries++ < 5)
@@ -84,7 +86,7 @@ public class RecipeSaverSystem : ModSystem
     private static bool _savedEnemies;
     private static bool _savedArmors;
 
-    private static async Task<bool> TrySavingData()
+    private async Task<bool> TrySavingData()
     {
         var armorsTask = SaveArmors();
         var groupsTask = SaveGroups();
@@ -100,7 +102,7 @@ public class RecipeSaverSystem : ModSystem
         return _savedGroups && _savedItems && _savedArmors && _savedRecipes && _savedEnemies;
     }
 
-    private static async Task SaveEnemies()
+    private async Task SaveEnemies()
     {
         if (_savedEnemies) return;
         await using var sw = new StreamWriter(EnemiesPath);
@@ -115,7 +117,7 @@ public class RecipeSaverSystem : ModSystem
         _savedEnemies = true;
     }
 
-    private static async Task SaveRecipes()
+    private async Task SaveRecipes()
     {
         if (_savedRecipes) return;
         await using var sw = new StreamWriter(RecipesPath);
@@ -132,34 +134,50 @@ public class RecipeSaverSystem : ModSystem
         _savedRecipes = true;
     }
 
-    private static async Task SaveItems()
+    private async Task SaveItems()
     {
+        Mod.Logger.Info($"Saving {ItemLoader.ItemCount} items.");
         if (_savedItems) return;
-        var item = new Item();
-        await using var itemStream = new StreamWriter(ItemsPath);
-        await using var itemWriter = new JsonTextWriter(itemStream);
-        await itemWriter.WriteStartArrayAsync();
-        List<Task> armorTasks = [];
-        for (var i = 1; i < ItemLoader.ItemCount; i++)
+        var itemChannel = Channel.CreateUnbounded<JsonItem>();
+        var itemWriterTask = Task.Run(async () =>
         {
-            item.SetDefaults(i);
-            if (item.type == ItemID.None) continue;
-            JsonItem jsonItem = new(item);
-            jsonItem.FindDrops();
-            Serializer.Serialize(itemWriter, jsonItem);
+            await using var itemStream = new StreamWriter(ItemsPath);
+            await using var itemWriter = new JsonTextWriter(itemStream);
+            await itemWriter.WriteStartArrayAsync();
+            await foreach (var item in itemChannel.Reader.ReadAllAsync())
+            {
+                Serializer.Serialize(itemWriter, item);
+            }
 
-            if (item.headSlot != -1) armorTasks.Add(JsonArmor.AddHead(i));
-            if (item.bodySlot != -1) armorTasks.Add(JsonArmor.AddBody(i));
-            if (item.legSlot != -1) armorTasks.Add(JsonArmor.AddLegs(i));
-        }
+            await itemWriter.WriteEndArrayAsync();
+        });
+        Parallel.For(1, ItemLoader.ItemCount, new ParallelOptions { MaxDegreeOfParallelism = 1000 }, () => Tuple.Create(new Item(), new Player()),
+            (i, state, tuple) =>
+            {
+                var item = tuple.Item1;
+                var player = tuple.Item2;
+                if (state.ShouldExitCurrentIteration) return tuple;
+                item.SetDefaults(i);
+                if (item.type == ItemID.None) return tuple;
 
-        foreach (var task in armorTasks) await task;
-        await itemWriter.WriteEndArrayAsync();
+                JsonItem jsonItem = new(item);
+                jsonItem.FindDrops();
+                itemChannel.Writer.TryWrite(jsonItem);
+
+                if (item.vanity) return tuple;
+                if (item.headSlot != -1) JsonArmor.AddHead(i);
+                if (item.bodySlot != -1) JsonArmor.AddBody(i);
+                if (item.legSlot != -1) JsonArmor.AddLegs(i);
+                return tuple;
+            }, _ => { });
+
+        itemChannel.Writer.Complete();
+        await itemWriterTask;
         JsonArmor.FinishChannel();
         _savedItems = true;
     }
 
-    private static async Task SaveArmors()
+    private async Task SaveArmors()
     {
         if (_savedArmors) return;
         await using var armorStream = new StreamWriter(ArmorSetsPath);
@@ -174,7 +192,7 @@ public class RecipeSaverSystem : ModSystem
         _savedArmors = true;
     }
 
-    private static async Task SaveGroups()
+    private async Task SaveGroups()
     {
         if (_savedGroups) return;
         await using var sw = new StreamWriter(GroupsPath);
